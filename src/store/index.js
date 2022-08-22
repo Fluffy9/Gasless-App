@@ -66,7 +66,7 @@ export default new Vuex.Store({
       // return the data of the highest plan that the user is registered for
       // we assume they have listed the plans in env from lowest => highest
       quotaData = quotaData.reverse()
-      for(let i = 0; i < quotaData.length; i++){
+      for(let i = 0; i < quotaData.length-1; i++){
         if(!BigNumber.from(0).eq(quotaData[i].timestamp)){
           let index = state.plans.length - (i+1) 
           let planData = await dispatch("getPlan", index)
@@ -87,15 +87,17 @@ export default new Vuex.Store({
       }
       quotaData = quotaData.reverse()
       let planData = await dispatch("getPlan", 0)
+      debugger
+      // in the case of the free plan, we need to consider the case where the user is not registered
       commit("setQuota", {
         name: state.plans[0].name,
         price: state.plans[0].price,
         quota: state.plans[0].quota,
         baseURL: state.plans[0].baseURL,
         address: state.plans[0].address,
-        usage: state.plans[0].quota - ethers.utils.formatEther(quotaData[0].gas),
+        usage: BigNumber.from(0).eq(quotaData[0].timestamp) ? 0 : state.plans[0].quota - ethers.utils.formatEther(quotaData[0].gas),
         timestamp: quotaData[0].timestamp,
-        nextPeriod: planData.nextPeriod,
+        nextPeriod: BigNumber.from(0).eq(quotaData[0].timestamp) ? (new Date()).setDate((new Date()).getDate+30)/1000 : planData.nextPeriod,
         cap: ethers.utils.formatEther(planData.limit)
       })
     },
@@ -105,6 +107,7 @@ export default new Vuex.Store({
       planData = await Promise.all(planData)
       return {nextPeriod: planData[0], limit: planData[1]}
     },
+
     async test({state}, {URL, controller, MAX}){
       let universalProfile = new ethers.Contract(state.ethereum.user, UniversalProfileContract.abi, state.ethereum.signer)
       let keyManager = await universalProfile.owner()

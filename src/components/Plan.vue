@@ -9,7 +9,7 @@
               </b-input-group-prepend>
               <b-form-input readonly ref="execution-endpoint" v-on:focus="$event.target.select()" :value="data.baseURL + 'execute'"></b-form-input>
               <b-input-group-append>
-                <b-button variant="success" id="execute-endpoint-copy" @click="copy('execution-endpoint')"><b-icon-clipboard></b-icon-clipboard></b-button>
+                <b-button variant="outline-secondary" id="execute-endpoint-copy" @click="copy('execution-endpoint')"><b-icon-clipboard></b-icon-clipboard></b-button>
                 <b-tooltip target="execute-endpoint-copy" triggers="click blur" title="Copied!"></b-tooltip>
                 <b-button variant="secondary" v-b-modal.executionTest>Test</b-button>
                 <b-modal id="executionTest" @ok="executeTest">
@@ -47,7 +47,7 @@
               </b-input-group-prepend>
               <b-form-input readonly ref="quota-endpoint" v-on:focus="$event.target.select()" :value="data.baseURL + 'quota'"></b-form-input>
               <b-input-group-append>
-                <b-button variant="success" id="quota-endpoint-copy" @click="copy('quota-endpoint')"><b-icon-clipboard></b-icon-clipboard></b-button>
+                <b-button variant="outline-secondary" id="quota-endpoint-copy" @click="copy('quota-endpoint')"><b-icon-clipboard></b-icon-clipboard></b-button>
                 <b-tooltip target="quota-endpoint-copy" triggers="click blur" title="Copied!"></b-tooltip>
                 <b-button variant="secondary" @click="quotaTest">Test</b-button>
               </b-input-group-append>
@@ -68,19 +68,20 @@
                     <b-col>{{(new Date(data.nextPeriod.toNumber() *  1000)).toLocaleString()}}</b-col>
                 </b-row>
                 <b-progress class="mt-2" :max="data.quota" show-value>
-                    <b-progress-bar id="usage" :value="usage" variant="secondary"  style="transition-duration:1000ms;">
-                        <span>{{((data.usage > data.quota ? data.quota : data.usage/data.quota) * 100).toFixed(2)}}% used</span>
-                    </b-progress-bar>
                     <b-progress-bar id="usage" :value="remaining" variant="primary" style="transition-duration:1000ms;">
-                        <span class="text-black">{{(100 - ((data.usage > data.quota ? data.quota : data.usage/data.quota) * 100)).toFixed(2)}}% remaining</span>
+                        <span class="text-black">{{Number(((remaining > quota ? quota : remaining)).toFixed(3))}} remaining</span>
+                    </b-progress-bar>
+                    <b-progress-bar id="usage" :value="usage" variant="secondary"  style="transition-duration:1000ms;">
+                        <span>{{Number(((usage > quota ? quota : usage)).toFixed(3))}} used</span>
                     </b-progress-bar>
                 </b-progress>
                 <br>
                 <div v-if="!isLastPlan">
-                    <b-button style="float: right" variant="outline-dark" :href="plan.stripeURL + '?client_reference_id=' + this.$store.state.ethereum.user">Upgrade</b-button>              
+                    <b-button style="float: right" variant="outline-dark" :href="nextPlan.stripeURL + '?client_reference_id=' + this.$store.state.ethereum.user">Upgrade</b-button>              
                 </div>
                 <div v-if="!isFirstPlan">
-                    <b-button style="float: right" variant="outline-danger" :href="`mailto:${supportEmail}?subject=Cancel&body=${user}`">Cancel Subscription</b-button>              
+                    <!-- <b-button style="float: right" variant="outline-danger" :href="`mailto:${supportEmail}?subject=Cancel&body=${user}`">Cancel Subscription</b-button>               -->
+                    <b-button style="float: right" variant="primary" @click="manageSubscription">Manage Subscription</b-button>
                 </div>
             </b-card>
 
@@ -126,7 +127,6 @@ export default {
     },
     data(){
         return {
-            plan: this.$store.state.plans[0],
             controller: "",
             options: [{ text: 'Send 0 to myself (should succeed)', value: false}, { text:'Send MAX to myself (should fail)', value: true}],
             option: [0],
@@ -156,6 +156,15 @@ export default {
         user(){
             return this.$store.state.ethereum.user
         },
+        quota(){
+            return Number(this.$store.state.quota.quota)
+        },
+        plan(){
+            return this.$store.state.plans[this.$store.state.plan]   
+        },
+        nextPlan(){
+            return this.$store.state.plans[this.$store.state.plan+1]
+        }
 
     },
     watch:{
@@ -166,8 +175,8 @@ export default {
       data() {
         let data = this.$store.state.quota
         setTimeout((() => {
-          this.usage = data.usage
-          this.remaining = (data.quota-data.usage < 0 ? 0 : data.quota-data.usage)
+          this.usage = Number(data.usage)
+          this.remaining = Number(data.quota-this.usage < 0 ? 0 : data.quota-this.usage)
           
         }).bind(this), 500);
       }
@@ -186,7 +195,7 @@ export default {
               'Content-Type': 'application/json'
             },
           }).then(res => { if(!res.ok) { throw new Error(res.statusText)} else { return res.json()}}).then(quota => {
-            this.$bvToast.toast(`${quota['quota']} ${quota['unit']} used of ${quota['totalQuota']} ${quota['unit']} resets at ${(new Date(quota['resetDate']*1000)).toLocaleDateString()}`, {
+            this.$bvToast.toast(`${quota['quota']} ${quota['unit']} remaining of ${quota['totalQuota']} ${quota['unit']} resets at ${(new Date(quota['resetDate']*1000)).toLocaleDateString()}`, {
                 variant: "success",
                 title: "Success"
             })
@@ -210,8 +219,31 @@ export default {
                   title: "Error"
               })
           })
+        },
+        async manageSubscription(){
+          fetch(this.data.baseURL + 'create-customer-portal-session', { 
+            method: 'POST', 
+            redirect: 'follow',            
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              address: this.$store.state.ethereum.user,
+              redirect_url: window.location.href,
+            })
+          })
+          .then(res => { if(!res.ok) { throw new Error(res.statusText)} else { return res.json()}}).then(res => {
+              // HTTP 301 response
+              window.open(res.url, '_blank').focus();
+          })
+          .catch(err => {
+              this.$bvToast.toast(err['message'], {
+                  variant: "danger",
+                  title: "Error"
+              })
+          });
         }
-
     },
     mounted(){
 
