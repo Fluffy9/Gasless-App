@@ -134,7 +134,7 @@ export default new Vuex.Store({
           address: universalProfile.address, 
           transaction: { 
             signature: signature, 
-            nonce: nonce, 
+            nonce: nonce.toNumber(), 
             abi: payload.data
           }
         }),
