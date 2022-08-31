@@ -12,6 +12,9 @@ The web UI for users to manage their Gasless account. Here, you can:
 ## Issues
 The dashboard relies on the [explorer](https://explorer.execution.l16.lukso.network/) for transaction history in lieu of subgraph access. The explorer is not syncing the most recent blocks meaning the api data is stale. This is the reason why the dashboard does not show all past user transactions
 
+## Testing
+When paying with Stripe, use the test cards shown [here](https://stripe.com/docs/testing#use-test-cards)
+
 ## Development setup
 Modify the variables in the .env file as necessary
 
