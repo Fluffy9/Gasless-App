@@ -87,7 +87,6 @@ export default new Vuex.Store({
       }
       quotaData = quotaData.reverse()
       let planData = await dispatch("getPlan", 0)
-      debugger
       // in the case of the free plan, we need to consider the case where the user is not registered
       commit("setQuota", {
         name: state.plans[0].name,
@@ -97,7 +96,7 @@ export default new Vuex.Store({
         address: state.plans[0].address,
         usage: BigNumber.from(0).eq(quotaData[0].timestamp) ? 0 : state.plans[0].quota - ethers.utils.formatEther(quotaData[0].gas),
         timestamp: quotaData[0].timestamp,
-        nextPeriod: BigNumber.from(0).eq(quotaData[0].timestamp) ? (new Date()).setDate((new Date()).getDate+30)/1000 : planData.nextPeriod,
+        nextPeriod: BigNumber.from(0).eq(quotaData[0].timestamp) ? BigNumber.from(0) : planData.nextPeriod,
         cap: ethers.utils.formatEther(planData.limit)
       })
     },

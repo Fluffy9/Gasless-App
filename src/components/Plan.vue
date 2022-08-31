@@ -65,7 +65,7 @@
                 </b-row>
                 <b-row>
                     <b-col>Next Billing Cycle: </b-col>
-                    <b-col>{{(new Date(data.nextPeriod.toNumber() *  1000)).toLocaleString()}}</b-col>
+                    <b-col>{{nextPeriod}}</b-col>
                 </b-row>
                 <b-progress class="mt-2" :max="data.quota" show-value>
                     <b-progress-bar id="usage" :value="remaining" variant="primary" style="transition-duration:1000ms;">
@@ -164,8 +164,13 @@ export default {
         },
         nextPlan(){
             return this.$store.state.plans[this.$store.state.plan+1]
+        },
+        nextPeriod(){
+            let in30days = (new Date()).setDate((new Date()).getDate()+30)
+            let period = this.data.nextPeriod.isBigNumber ? this.data.nextPeriod.toNumber() : this.data.nextPeriod
+            period = period == 0 ? in30days : (new Date(period * 1000)).toLocaleString()
+            return period || in30days
         }
-
     },
     watch:{
       ready() {
@@ -195,7 +200,7 @@ export default {
               'Content-Type': 'application/json'
             },
           }).then(res => { if(!res.ok) { throw new Error(res.statusText)} else { return res.json()}}).then(quota => {
-            this.$bvToast.toast(`${quota['quota']} ${quota['unit']} remaining of ${quota['totalQuota']} ${quota['unit']} resets at ${(new Date(quota['resetDate']*1000)).toLocaleDateString()}`, {
+            this.$bvToast.toast(`${quota['quota']} ${quota['unit']} of ${quota['totalQuota']} ${quota['unit']} resets at ${(new Date(quota['resetDate']*1000)).toLocaleDateString()}`, {
                 variant: "success",
                 title: "Success"
             })
